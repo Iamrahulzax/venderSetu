@@ -1,0 +1,14 @@
+{
+  "name": "vendersetu",
+  "version": "1.0.0",
+  "description": "VenderSetu: A Real-Time College Marketplace for Students and Local Stores",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "seed": "npm run seed --prefix server",
+    "test": "npm run test --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

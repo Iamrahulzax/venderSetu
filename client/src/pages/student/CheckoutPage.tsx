@@ -355,15 +355,28 @@ export const CheckoutPage: React.FC = () => {
                 const fee = f === 'delivery' && g.offersDelivery ? g.deliveryFee : 0;
 
                 return (
-                  <div key={g.storeId} className="pt-2.5 first:pt-0 space-y-1 text-xs">
+                  <div key={g.storeId} className="pt-2.5 first:pt-0 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-bold text-slate-900">
                       <span>{g.storeName}</span>
                       <span>₹{g.storeSubtotal + fee}</span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500">
-                      {g.items.length} item{g.items.length > 1 ? 's' : ''} •{' '}
-                      {f === 'delivery' ? `Delivery (+₹${fee})` : 'Pickup (₹0)'}
+                    <div className="space-y-1 pl-2 border-l border-slate-100">
+                      {g.items.map((i, idx) => (
+                        <div key={idx} className="text-[11px] text-slate-600 flex justify-between">
+                          <span className="truncate max-w-[170px]">
+                            {i.quantity}x {i.name}
+                            {i.selectedVariant && (
+                              <span className="text-amber-700 ml-1">({i.selectedVariant.name})</span>
+                            )}
+                          </span>
+                          <span>₹{i.subtotal}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-[10px] text-slate-400">
+                      Fulfillment: {f === 'delivery' ? `Delivery (+₹${fee})` : 'Self Pickup (₹0)'}
                     </p>
                   </div>
                 );

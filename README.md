@@ -23,8 +23,9 @@ VenderSetu launches with five independent campus stores:
 
 ## 🚀 2. System Architecture & Tech Stack
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Lucide React, Socket.IO Client, React Router DOM.
-- **Backend**: Node.js, Express, TypeScript, Mongoose, Socket.IO, JWT Auth, Bcrypt.js.
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS with **Chai UI Design System** (`ui.chaicode.com` warm aesthetic tokens), Lucide React, Socket.IO Client, React Router DOM.
+- **Backend**: Node.js, Express, TypeScript, Mongoose, Socket.IO, JWT Auth, Bcrypt.js, Multer (multipart file upload).
+- **Media & Menus**: Local multipart storage (`/uploads`) + external CDN/Unsplash support; digital menu PDFs/Photos with embedded preview modal.
 - **Database**: MongoDB (Local or MongoDB Atlas) with atomic decrement operations (`$inc`) and optimistic stock locking.
 - **Real-Time Engine**: WebSocket via Socket.IO for instant live stock updates and order alerts.
 - **Payments**: Razorpay test mode / sandbox simulation with signature verification, plus Cash on Pickup and Pay at Store.
@@ -34,19 +35,30 @@ VenderSetu launches with five independent campus stores:
 
 ## ⚡ 3. Key Capabilities
 
+### 🎨 Chai UI & Design Aesthetics
+- **Warm Chai Palette**: Tailored tea tones (`chai-50` to `chai-900`) inspired by ChaiCode (`ui.chaicode.com`).
+- **Chai UI Component Suite**: Custom Chai UI atomic components (`Button`, `Card`, `Badge`, `Chip`, `Tabs`, `Dialog`, `Table`, `Input`, `FileUploadZone`).
+- **Authentic Food & Goods Photography**: High-resolution food photography for fast food & snacks, plus FSSAI Veg / Non-Veg badges and prep times.
+
 ### 🎓 Student Marketplace
 - **Single Campus Portal**: Browse all 5 stores simultaneously or visit store-specific pages.
+- **Fast-Food Digital Menus**: Store-level digital menus with sticky category navigation, veg-only filters, item variants (e.g. Steamed vs Fried Momos, Single vs Double Patty Burger), and add-ons (e.g. Extra Cheese, Spicy Mayo).
+- **Physical Menu Viewer**: "View Store Menu Card" button opens merchant-uploaded PDF or photo menus in an interactive preview modal.
 - **Real-Time Stock Reflection**: Inventory changes made by merchants reflect on the student marketplace immediately without page refreshes.
 - **Cross-Store Price Comparison**: Compare identical items (e.g., Kurkure, Maggi, Coca-Cola, Classmate notebooks) across shops side-by-side to find the lowest price.
-- **Multi-Store Shopping Cart**: Add items from multiple shops in one cart; persisted in database for authenticated users.
+- **Multi-Store Shopping Cart**: Add items from multiple shops in one cart; persisted in database with full variant and add-on support.
 - **Parent Checkout & Suborders**: A single checkout creates 1 master order with separate, independent suborders routed to each respective seller.
-- **Order Tracking & Digital Receipts**: Live preparation status tracking (`Pending` → `Accepted` → `Preparing` → `Ready for Pickup / Out for Delivery` → `Completed`).
+- **Order Tracking & Digital Receipts**: Live preparation status tracking (`Pending` → `Accepted` → `Preparing` → `Ready for Pickup / Out for Delivery` → `Completed`) displaying variant and add-on lines.
 - **Stock Release on Cancellation**: Cancellations automatically restore items to store inventory and generate audit entries.
 - **Dispute Resolution**: Direct complaint filing to the campus administrator desk.
 
 ### 🏪 Seller Dashboard (Store-Specific)
 - **Isolated Multi-Tenancy**: Sellers only see and edit data for their assigned store.
-- **Live Order Queue**: Real-time sound notification and alert when a new order arrives.
+- **8 Purpose-Built Tabs**: `Overview | Orders | Menu & Products | Inventory | Stock History | Sales | Payments | Store Settings`.
+- **Fast-Food Menu Manager**: Configure variants, add-ons, veg/non-veg indicator, prep time, and 1-click availability toggles.
+- **Menu Card Uploader**: Upload physical store menus as PDF or high-resolution photos with camera or drag & drop.
+- **Student Preview Mode**: Live modal preview testing items as students would see them.
+- **Live Order Queue**: Real-time sound chime and visual badge alert when a new order arrives.
 - **Suborder Management**: One-click Accept or Reject (with mandatory rejection reason that automatically releases reserved stock).
 - **Preparation Tracking**: Progression from Accepted to Preparing, Ready for Counter Pickup, or Out for Hostel Delivery.
 - **Inventory Control**:
@@ -56,7 +68,7 @@ VenderSetu launches with five independent campus stores:
   - Low-stock and out-of-stock threshold warnings.
   - Comprehensive inventory valuation (total units, recorded cost value, retail value, estimated gross profit).
   - One-click CSV inventory export.
-- **Store Configuration**: Toggle shop Open/Closed, adjust opening hours, configure delivery fees and minimum order amounts.
+- **Store Configuration**: Toggle shop Open/Closed, adjust opening hours, configure banner images, delivery fees, and minimum order amounts.
 
 ### 🛡️ Administrator Console
 - **Campus-Wide Overview**: Total student buyers, registered merchants, active stores, and gross platform volume.

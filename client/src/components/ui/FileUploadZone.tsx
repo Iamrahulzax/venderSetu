@@ -3,7 +3,7 @@ import { Upload, X, Camera, FileText, CheckCircle2, AlertCircle, Loader2, Link a
 import { Button } from './Button';
 import { Input } from './Input';
 import { cn } from '../../lib/utils';
-import { useAuth } from '../../context/AuthContext';
+import { getAuthToken } from '../../services/api';
 
 export interface FileUploadZoneProps {
   value?: string;
@@ -24,7 +24,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
   allowPdf = false,
   className
 }) => {
-  const { token } = useAuth();
+  const token = getAuthToken();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 

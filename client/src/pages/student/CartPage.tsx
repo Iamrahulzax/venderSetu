@@ -152,6 +152,20 @@ export const CartPage: React.FC = () => {
                           <h3 className="font-semibold text-slate-900 text-xs sm:text-sm line-clamp-1">
                             {item.name}
                           </h3>
+                          {item.selectedVariant && (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-800 font-medium border border-amber-200 mr-1.5">
+                              {item.selectedVariant.name} (+₹{item.selectedVariant.price})
+                            </span>
+                          )}
+                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.selectedAddons.map((addon, aIdx) => (
+                                <span key={aIdx} className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  +{addon.name} (₹{addon.price})
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-[11px] text-slate-500">
                             ₹{item.price} • {item.unit}
                           </p>

@@ -344,11 +344,27 @@ export const OrdersPage: React.FC = () => {
                         {/* Items in this suborder */}
                         <div className="space-y-1.5 pt-1 border-t border-slate-100 text-xs text-slate-700">
                           {sub.items.map((i: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between">
-                              <span className="truncate max-w-[180px]">
-                                {i.quantity}x {i.name}
-                              </span>
-                              <span className="font-semibold text-slate-900">₹{i.subtotal}</span>
+                            <div key={idx} className="space-y-0.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-slate-800">
+                                  {i.quantity}x {i.name}
+                                </span>
+                                <span className="font-semibold text-slate-900">₹{i.subtotal}</span>
+                              </div>
+                              {(i.selectedVariant || (i.selectedAddons && i.selectedAddons.length > 0)) && (
+                                <div className="text-[10px] text-slate-500 pl-2 flex flex-wrap gap-1">
+                                  {i.selectedVariant && (
+                                    <span className="bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                                      {i.selectedVariant.name}
+                                    </span>
+                                  )}
+                                  {i.selectedAddons && i.selectedAddons.length > 0 && (
+                                    <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                      +{i.selectedAddons.map((a: any) => a.name).join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -444,11 +460,21 @@ export const OrdersPage: React.FC = () => {
                 <div key={sub._id} className="bg-slate-50 p-3 rounded-2xl space-y-2">
                   <p className="font-bold text-slate-900">{sub.storeId?.name || 'Store'}</p>
                   {sub.items.map((i: any, idx: number) => (
-                    <div key={idx} className="flex justify-between text-[11px]">
-                      <span>
-                        {i.quantity}x {i.name}
-                      </span>
-                      <span>₹{i.subtotal}</span>
+                    <div key={idx} className="space-y-0.5">
+                      <div className="flex justify-between text-[11px]">
+                        <span>
+                          {i.quantity}x {i.name}
+                        </span>
+                        <span>₹{i.subtotal}</span>
+                      </div>
+                      {(i.selectedVariant || (i.selectedAddons && i.selectedAddons.length > 0)) && (
+                        <div className="text-[10px] text-slate-500 pl-2">
+                          {i.selectedVariant && <span>[{i.selectedVariant.name}] </span>}
+                          {i.selectedAddons && i.selectedAddons.length > 0 && (
+                            <span>(+{i.selectedAddons.map((a: any) => a.name).join(', ')})</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {sub.deliveryFee > 0 && (

@@ -10,6 +10,15 @@ export interface CartItem {
   image: string;
   unit: string;
   price: number;
+  basePrice?: number;
+  selectedVariant?: {
+    name: string;
+    price: number;
+  };
+  selectedAddons?: Array<{
+    name: string;
+    price: number;
+  }>;
   quantity: number;
   stock: number;
   availableStock: number;
@@ -40,7 +49,12 @@ interface CartContextType {
     storeGroups: StoreGroup[];
   };
   loading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
+  addToCart: (
+    productId: string,
+    quantity?: number,
+    selectedVariant?: { name: string; price: number },
+    selectedAddons?: Array<{ name: string; price: number }>
+  ) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -133,10 +147,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [liveStocks]);
 
-  const addToCart = async (productId: string, quantity = 1) => {
+  const addToCart = async (
+    productId: string,
+    quantity = 1,
+    selectedVariant?: { name: string; price: number },
+    selectedAddons?: Array<{ name: string; price: number }>
+  ) => {
     await apiRequest('/cart/add', {
       method: 'POST',
-      body: JSON.stringify({ productId, quantity })
+      body: JSON.stringify({ productId, quantity, selectedVariant, selectedAddons })
     });
     await fetchCart();
   };

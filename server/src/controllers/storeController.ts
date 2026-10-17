@@ -93,10 +93,85 @@ export const updateStoreSettings = async (req: AuthRequest, res: Response): Prom
     if (contactPhone !== undefined) store.contactPhone = contactPhone;
     if (description !== undefined) store.description = description;
     if (location !== undefined) store.location = location;
+    if (req.body.bannerImage !== undefined) store.bannerImage = req.body.bannerImage;
+    if (req.body.categoryTags !== undefined) store.categoryTags = req.body.categoryTags;
 
     await store.save();
 
     res.json({ success: true, message: 'Store settings updated successfully', store });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Add uploaded menu document (PDF or image)
+export const addMenuDocument = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const { title, fileUrl, fileType = 'image' } = req.body;
+
+    if (!fileUrl) {
+      res.status(400).json({ success: false, message: 'fileUrl is required.' });
+      return;
+    }
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      res.status(404).json({ success: false, message: 'Store not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'admin' && req.user?.assignedStoreId?.toString() !== storeId) {
+      res.status(403).json({ success: false, message: 'Unauthorized to add menu document for this store.' });
+      return;
+    }
+
+    store.menuDocuments.push({
+      title: title || `${store.name} Digital Menu`,
+      fileUrl,
+      fileType: fileType === 'pdf' ? 'pdf' : 'image',
+      uploadedAt: new Date()
+    });
+
+    await store.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Menu document published successfully.',
+      menuDocuments: store.menuDocuments
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Remove menu document
+export const removeMenuDocument = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { storeId, docId } = req.params;
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      res.status(404).json({ success: false, message: 'Store not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'admin' && req.user?.assignedStoreId?.toString() !== storeId) {
+      res.status(403).json({ success: false, message: 'Unauthorized.' });
+      return;
+    }
+
+    store.menuDocuments = store.menuDocuments.filter(
+      (doc: any) => doc._id.toString() !== docId
+    );
+
+    await store.save();
+
+    res.json({
+      success: true,
+      message: 'Menu document removed successfully.',
+      menuDocuments: store.menuDocuments
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

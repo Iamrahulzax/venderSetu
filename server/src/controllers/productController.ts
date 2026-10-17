@@ -67,8 +67,15 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       brand: p.brand,
       category: p.category,
       image: p.image,
+      images: p.images || (p.image ? [p.image] : []),
       unit: p.unit,
       variant: p.variant,
+      variants: p.variants || [],
+      addons: p.addons || [],
+      isVeg: p.isVeg !== undefined ? p.isVeg : true,
+      servingSize: p.servingSize || '',
+      prepTime: p.prepTime || '',
+      isAvailable: p.isAvailable !== undefined ? p.isAvailable : true,
       sellingPrice: p.sellingPrice,
       stock: p.stock,
       reservedStock: p.reservedStock,
@@ -77,7 +84,10 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       isLowStock: p.stock > 0 && p.stock <= p.lowStockThreshold,
       isOutOfStock: p.stock <= 0,
       isComparable: p.isComparable,
-      comparableGroupKey: p.comparableGroupKey
+      comparableGroupKey: p.comparableGroupKey,
+      sku: p.sku,
+      expiryDate: p.expiryDate,
+      displayOrder: p.displayOrder || 0
     }));
 
     res.json({
@@ -176,14 +186,24 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       brand,
       category,
       image,
+      images,
       unit,
       variant,
+      variants,
+      addons,
+      isVeg = true,
+      servingSize = '',
+      prepTime = '',
+      isAvailable = true,
       sellingPrice,
       costPrice,
       stock = 0,
       lowStockThreshold = 5,
       isComparable = false,
-      comparableGroupKey
+      comparableGroupKey,
+      sku,
+      expiryDate,
+      displayOrder = 0
     } = req.body;
 
     const targetStoreId = storeId || req.user?.assignedStoreId;
@@ -207,21 +227,33 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const imageArray = Array.isArray(images) && images.length > 0 ? images : image ? [image] : [];
+
     const product = await Product.create({
       storeId: targetStoreId,
       name: name.trim(),
       description: description || '',
       brand: brand.trim(),
-      category: category.toLowerCase(),
-      image: image || '',
+      category: category.toLowerCase().trim(),
+      image: image || (imageArray[0] || ''),
+      images: imageArray,
       unit: unit || '1 unit',
       variant: variant || 'Standard',
+      variants: Array.isArray(variants) ? variants : [],
+      addons: Array.isArray(addons) ? addons : [],
+      isVeg: Boolean(isVeg),
+      servingSize: servingSize || '',
+      prepTime: prepTime || '',
+      isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
       sellingPrice: Number(sellingPrice),
       costPrice: Number(costPrice),
       stock: Number(stock),
       lowStockThreshold: Number(lowStockThreshold),
       isComparable: Boolean(isComparable),
       comparableGroupKey: comparableGroupKey ? comparableGroupKey.trim() : undefined,
+      sku: sku ? sku.trim() : undefined,
+      expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+      displayOrder: Number(displayOrder) || 0,
       isActive: true
     });
 
@@ -282,29 +314,49 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
       brand,
       category,
       image,
+      images,
       unit,
       variant,
+      variants,
+      addons,
+      isVeg,
+      servingSize,
+      prepTime,
+      isAvailable,
       sellingPrice,
       costPrice,
       lowStockThreshold,
       isActive,
       isComparable,
-      comparableGroupKey
+      comparableGroupKey,
+      sku,
+      expiryDate,
+      displayOrder
     } = req.body;
 
     if (name) product.name = name.trim();
     if (description !== undefined) product.description = description;
     if (brand) product.brand = brand.trim();
-    if (category) product.category = category.toLowerCase();
+    if (category) product.category = category.toLowerCase().trim();
     if (image !== undefined) product.image = image;
+    if (images !== undefined) product.images = Array.isArray(images) ? images : [images];
     if (unit) product.unit = unit;
     if (variant) product.variant = variant;
+    if (variants !== undefined) product.variants = Array.isArray(variants) ? variants : [];
+    if (addons !== undefined) product.addons = Array.isArray(addons) ? addons : [];
+    if (isVeg !== undefined) product.isVeg = Boolean(isVeg);
+    if (servingSize !== undefined) product.servingSize = servingSize;
+    if (prepTime !== undefined) product.prepTime = prepTime;
+    if (isAvailable !== undefined) product.isAvailable = Boolean(isAvailable);
     if (sellingPrice !== undefined) product.sellingPrice = Number(sellingPrice);
     if (costPrice !== undefined) product.costPrice = Number(costPrice);
     if (lowStockThreshold !== undefined) product.lowStockThreshold = Number(lowStockThreshold);
     if (isActive !== undefined) product.isActive = Boolean(isActive);
     if (isComparable !== undefined) product.isComparable = Boolean(isComparable);
     if (comparableGroupKey !== undefined) product.comparableGroupKey = comparableGroupKey;
+    if (sku !== undefined) product.sku = sku;
+    if (expiryDate !== undefined) product.expiryDate = expiryDate ? new Date(expiryDate) : undefined;
+    if (displayOrder !== undefined) product.displayOrder = Number(displayOrder);
 
     await product.save();
 
@@ -322,6 +374,87 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     res.json({ success: true, message: 'Product updated successfully', product });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Toggle product availability (Food sellers or general stores)
+export const toggleAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      res.status(404).json({ success: false, message: 'Product not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'admin' && req.user?.assignedStoreId?.toString() !== product.storeId.toString()) {
+      res.status(403).json({ success: false, message: 'Unauthorized.' });
+      return;
+    }
+
+    product.isAvailable = !product.isAvailable;
+    await product.save();
+
+    // Broadcast instant update
+    broadcastStockUpdate({
+      productId: product._id.toString(),
+      storeId: product.storeId.toString(),
+      stock: product.stock,
+      reservedStock: product.reservedStock || 0,
+      availableStock: Math.max(0, product.stock - (product.reservedStock || 0)),
+      sellingPrice: product.sellingPrice,
+      name: product.name,
+      lowStock: product.stock <= product.lowStockThreshold,
+      outOfStock: product.stock <= 0
+    });
+
+    res.json({
+      success: true,
+      message: `Product availability set to ${product.isAvailable ? 'Available' : 'Unavailable'}`,
+      isAvailable: product.isAvailable,
+      product
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Soft delete / Hide product
+export const deleteProduct = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      res.status(404).json({ success: false, message: 'Product not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'admin' && req.user?.assignedStoreId?.toString() !== product.storeId.toString()) {
+      res.status(403).json({ success: false, message: 'Unauthorized to delete this product.' });
+      return;
+    }
+
+    // Soft delete by deactivating so historical orders remain valid
+    product.isActive = false;
+    await product.save();
+
+    broadcastStockUpdate({
+      productId: product._id.toString(),
+      storeId: product.storeId.toString(),
+      stock: 0,
+      reservedStock: 0,
+      availableStock: 0,
+      sellingPrice: product.sellingPrice,
+      name: product.name,
+      lowStock: false,
+      outOfStock: true
+    });
+
+    res.json({ success: true, message: 'Product removed from active catalog.' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

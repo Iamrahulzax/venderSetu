@@ -1,5 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export interface IMenuDocument {
+  title: string;
+  fileUrl: string;
+  fileType: 'pdf' | 'image';
+  uploadedAt?: Date;
+}
+
 export interface IStore extends Document {
   name: string;
   slug: string;
@@ -13,11 +20,23 @@ export interface IStore extends Document {
   minimumOrder: number;
   estimatedPrepTime: string;
   bannerImage: string;
+  storeType: 'food' | 'general';
   categoryTags: string[];
+  menuDocuments: IMenuDocument[];
   ownerId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const menuDocumentSchema = new Schema<IMenuDocument>(
+  {
+    title: { type: String, default: 'Store Menu' },
+    fileUrl: { type: String, required: true },
+    fileType: { type: String, enum: ['pdf', 'image'], default: 'image' },
+    uploadedAt: { type: Date, default: Date.now }
+  },
+  { _id: true }
+);
 
 const storeSchema = new Schema<IStore>(
   {
@@ -33,7 +52,9 @@ const storeSchema = new Schema<IStore>(
     minimumOrder: { type: Number, default: 0 },
     estimatedPrepTime: { type: String, default: '15-20 mins' },
     bannerImage: { type: String, default: '' },
+    storeType: { type: String, enum: ['food', 'general'], default: 'food', index: true },
     categoryTags: [{ type: String }],
+    menuDocuments: [menuDocumentSchema],
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', default: null }
   },
   { timestamps: true }

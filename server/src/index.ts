@@ -5,6 +5,8 @@ import { ENV } from './config/env.js';
 import { connectDB } from './config/db.js';
 import { initSocket } from './services/socketService.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
 import productRoutes from './routes/productRoutes.js';
@@ -13,6 +15,10 @@ import orderRoutes from './routes/orderRoutes.js';
 import sellerRoutes from './routes/sellerRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +36,10 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Static uploads directory serving
+const uploadsDirectory = path.resolve(__dirname, '../public/uploads');
+app.use('/uploads', express.static(uploadsDirectory));
 
 // Health Check
 app.get('/api/health', (_req, res) => {
@@ -50,6 +60,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Error Handling Middleware
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

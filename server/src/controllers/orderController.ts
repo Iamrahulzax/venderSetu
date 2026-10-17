@@ -60,6 +60,14 @@ export const createCheckoutOrder = async (req: AuthRequest, res: Response): Prom
         return;
       }
 
+      if (product.isAvailable === false) {
+        res.status(400).json({
+          success: false,
+          message: `"${product.name}" is temporarily marked as unavailable by the seller.`
+        });
+        return;
+      }
+
       // Check current stock availability
       const availableStock = Math.max(0, product.stock - (product.reservedStock || 0));
       if (availableStock < item.quantity) {
@@ -87,12 +95,24 @@ export const createCheckoutOrder = async (req: AuthRequest, res: Response): Prom
         storeMap[storeIdStr] = { store, items: [] };
       }
 
+      // Compute price taking into account selected variant and addons
+      const variantPrice = item.selectedVariant && item.selectedVariant.price !== undefined
+        ? Number(item.selectedVariant.price)
+        : product.sellingPrice;
+      const addonsPrice = Array.isArray(item.selectedAddons)
+        ? item.selectedAddons.reduce((sum: number, a: any) => sum + (Number(a.price) || 0), 0)
+        : 0;
+      const effectiveUnitPrice = variantPrice + addonsPrice;
+      const itemSubtotal = effectiveUnitPrice * item.quantity;
+
       storeMap[storeIdStr].items.push({
         product,
         quantity: item.quantity,
-        unitPrice: product.sellingPrice,
+        unitPrice: effectiveUnitPrice,
         costPrice: product.costPrice,
-        subtotal: product.sellingPrice * item.quantity
+        subtotal: itemSubtotal,
+        selectedVariant: item.selectedVariant,
+        selectedAddons: item.selectedAddons || []
       });
     }
 
@@ -179,7 +199,9 @@ export const createCheckoutOrder = async (req: AuthRequest, res: Response): Prom
           unitPrice: i.unitPrice,
           costPrice: i.costPrice,
           unit: i.product.unit,
-          subtotal: i.subtotal
+          subtotal: i.subtotal,
+          selectedVariant: i.selectedVariant,
+          selectedAddons: i.selectedAddons || []
         })),
         itemsSubtotal,
         deliveryFee,

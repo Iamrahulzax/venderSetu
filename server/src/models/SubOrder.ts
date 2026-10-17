@@ -20,6 +20,14 @@ export interface ISubOrderItem {
   costPrice: number;
   unit: string;
   subtotal: number;
+  selectedVariant?: {
+    name: string;
+    price: number;
+  };
+  selectedAddons?: Array<{
+    name: string;
+    price: number;
+  }>;
 }
 
 export interface ISubOrder extends Document {
@@ -59,7 +67,17 @@ const subOrderItemSchema = new Schema<ISubOrderItem>(
     unitPrice: { type: Number, required: true },
     costPrice: { type: Number, required: true },
     unit: { type: String, default: '1 unit' },
-    subtotal: { type: Number, required: true }
+    subtotal: { type: Number, required: true },
+    selectedVariant: {
+      name: { type: String },
+      price: { type: Number }
+    },
+    selectedAddons: [
+      {
+        name: { type: String },
+        price: { type: Number }
+      }
+    ]
   },
   { _id: false }
 );

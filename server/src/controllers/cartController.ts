@@ -30,7 +30,7 @@ export const getCart = async (req: AuthRequest, res: Response): Promise<void> =>
     for (const item of cart.items) {
       const product: any = productMap.get(item.productId.toString());
       if (!product || !product.isActive) {
-        // Item no longer available; can skip or show warning
+        // Item no longer active; skip
         continue;
       }
 
@@ -38,8 +38,17 @@ export const getCart = async (req: AuthRequest, res: Response): Promise<void> =>
       const storeIdStr = store._id.toString();
 
       const availableStock = Math.max(0, product.stock - (product.reservedStock || 0));
-      const isAvailable = availableStock >= item.quantity;
-      const itemSubtotal = product.sellingPrice * item.quantity;
+      const isAvailable = (product.isAvailable !== false) && (availableStock >= item.quantity);
+
+      // Compute price taking into account variant and addons
+      const variantPrice = item.selectedVariant && item.selectedVariant.price !== undefined
+        ? item.selectedVariant.price
+        : product.sellingPrice;
+      const addonsPrice = Array.isArray(item.selectedAddons)
+        ? item.selectedAddons.reduce((sum: number, a: any) => sum + (Number(a.price) || 0), 0)
+        : 0;
+      const effectiveUnitPrice = variantPrice + addonsPrice;
+      const itemSubtotal = effectiveUnitPrice * item.quantity;
 
       const enrichedItem = {
         productId: product._id,
@@ -47,7 +56,10 @@ export const getCart = async (req: AuthRequest, res: Response): Promise<void> =>
         brand: product.brand,
         image: product.image,
         unit: product.unit,
-        price: product.sellingPrice,
+        price: effectiveUnitPrice,
+        basePrice: product.sellingPrice,
+        selectedVariant: item.selectedVariant,
+        selectedAddons: item.selectedAddons || [],
         quantity: item.quantity,
         stock: product.stock,
         availableStock,
@@ -97,7 +109,7 @@ export const getCart = async (req: AuthRequest, res: Response): Promise<void> =>
 export const addToCart = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!._id;
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, selectedVariant, selectedAddons } = req.body;
 
     if (!productId) {
       res.status(400).json({ success: false, message: 'productId is required.' });
@@ -107,6 +119,14 @@ export const addToCart = async (req: AuthRequest, res: Response): Promise<void> 
     const product = await Product.findById(productId);
     if (!product || !product.isActive) {
       res.status(404).json({ success: false, message: 'Product is not available.' });
+      return;
+    }
+
+    if (product.isAvailable === false) {
+      res.status(400).json({
+        success: false,
+        message: `"${product.name}" is temporarily unavailable from the kitchen.`
+      });
       return;
     }
 
@@ -121,7 +141,20 @@ export const addToCart = async (req: AuthRequest, res: Response): Promise<void> 
       cart = new Cart({ userId, items: [] });
     }
 
-    const existingIndex = cart.items.findIndex((i) => i.productId.toString() === productId);
+    // Match existing item with identical variant and addons
+    const variantName = selectedVariant?.name || '';
+    const addonsKey = Array.isArray(selectedAddons)
+      ? selectedAddons.map((a: any) => a.name).sort().join(',')
+      : '';
+
+    const existingIndex = cart.items.findIndex((i) => {
+      if (i.productId.toString() !== productId) return false;
+      const iVar = i.selectedVariant?.name || '';
+      const iAdd = Array.isArray(i.selectedAddons)
+        ? i.selectedAddons.map((a: any) => a.name).sort().join(',')
+        : '';
+      return iVar === variantName && iAdd === addonsKey;
+    });
 
     if (existingIndex > -1) {
       const newQty = cart.items[existingIndex].quantity + Number(quantity);
@@ -144,7 +177,9 @@ export const addToCart = async (req: AuthRequest, res: Response): Promise<void> 
       cart.items.push({
         productId: product._id as any,
         storeId: product.storeId as any,
-        quantity: Number(quantity)
+        quantity: Number(quantity),
+        selectedVariant: selectedVariant ? { name: selectedVariant.name, price: Number(selectedVariant.price) } : undefined,
+        selectedAddons: Array.isArray(selectedAddons) ? selectedAddons.map((a: any) => ({ name: a.name, price: Number(a.price) })) : []
       });
     }
 

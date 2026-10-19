@@ -272,7 +272,7 @@ export const createCheckoutOrder = async (req: AuthRequest, res: Response): Prom
   }
 };
 
-// Payment Verification (Razorpay / Sandbox simulation)
+// Payment Verification (Razorpay / Cryptographic signature check)
 export const verifyPayment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { orderId } = req.params;
@@ -284,18 +284,62 @@ export const verifyPayment = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // CRITICAL SECURITY FIX: Authorization check (IDOR Protection)
+    const isOwner = req.user?.role === 'student' && order.studentId.toString() === req.user._id.toString();
+    const isAdmin = req.user?.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ success: false, message: 'Unauthorized to verify payment for this order.' });
+      return;
+    }
+
     // Idempotency check: prevent duplicate payment processing
     if (order.paymentStatus === 'paid') {
       res.json({ success: true, message: 'Order already marked as paid.', order });
       return;
     }
 
-    // In sandbox / test environment, verify or accept simulated signature
+    const razorpayOrderId = order.paymentDetails?.razorpayOrderId;
+    const isOnlinePayment = ['upi', 'card', 'netbanking'].includes(order.paymentMethod);
+
+    if (isOnlinePayment && razorpayOrderId) {
+      if (!razorpayPaymentId) {
+        res.status(400).json({ success: false, message: 'razorpayPaymentId is required for online payments.' });
+        return;
+      }
+
+      // Generate expected cryptographic HMAC SHA-256 signature
+      const expectedSignature = crypto
+        .createHmac('sha256', ENV.RAZORPAY_KEY_SECRET)
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
+
+      let signatureValid = false;
+      if (razorpaySignature && typeof razorpaySignature === 'string') {
+        const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+        const providedBuf = Buffer.from(razorpaySignature, 'utf8');
+
+        if (expectedBuf.length === providedBuf.length && crypto.timingSafeEqual(expectedBuf, providedBuf)) {
+          signatureValid = true;
+        } else if (ENV.NODE_ENV !== 'production' && razorpaySignature === 'simulated_valid_signature') {
+          // Allow mock signature only in non-production development environments
+          signatureValid = true;
+        }
+      }
+
+      if (!signatureValid) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature. Verification failed.'
+        });
+        return;
+      }
+    }
+
     const paymentId = razorpayPaymentId || `pay_${crypto.randomBytes(8).toString('hex')}`;
 
     order.paymentStatus = 'paid';
     order.paymentDetails.razorpayPaymentId = paymentId;
-    order.paymentDetails.razorpaySignature = razorpaySignature || 'simulated_valid_signature';
+    order.paymentDetails.razorpaySignature = razorpaySignature || 'verified_signature';
     order.paymentDetails.paidAt = new Date();
     await order.save();
 

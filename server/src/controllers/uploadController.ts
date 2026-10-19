@@ -27,22 +27,35 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter: images and PDFs only
-const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/avif',
-    'image/gif',
-    'application/pdf'
-  ];
+// Strict whitelist of permitted MIME types and their matching extensions
+const ALLOWED_MIME_EXTENSIONS: Record<string, string[]> = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+  'image/avif': ['.avif'],
+  'image/gif': ['.gif'],
+  'application/pdf': ['.pdf']
+};
 
-  if (allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
-    cb(null, true);
-  } else {
-    cb(new Error(`Unsupported file type: ${file.mimetype}. Allowed: JPEG, PNG, WebP, AVIF, PDF.`));
+// File filter: strict cross-validation of MIME type and extension
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const mime = file.mimetype.toLowerCase();
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  const allowedExts = ALLOWED_MIME_EXTENSIONS[mime];
+  if (!allowedExts || !allowedExts.includes(ext)) {
+    cb(new Error(`Security Error: Disallowed or mismatched file format (${ext} / ${mime}). Only standard JPG, PNG, WebP, AVIF, GIF, and PDF files are allowed.`));
+    return;
   }
+
+  // Prevent dangerous double extensions (e.g. payload.php.png or bad.html.pdf)
+  const baseName = path.basename(file.originalname, ext);
+  if (/\.(php|phtml|html|htm|shtml|js|jsx|ts|tsx|exe|bat|cmd|sh|py|pl|cgi|jar|war|svg|xml)$/i.test(baseName)) {
+    cb(new Error('Security Error: Malicious multi-extension file detected.'));
+    return;
+  }
+
+  cb(null, true);
 };
 
 export const uploadMiddleware = multer({

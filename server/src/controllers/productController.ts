@@ -29,12 +29,15 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       query.category = category.toString().toLowerCase();
     }
 
+    const escapeRegex = (str: string): string => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     if (brand && brand !== 'all') {
-      query.brand = new RegExp(brand.toString(), 'i');
+      query.brand = new RegExp(escapeRegex(brand.toString()), 'i');
     }
 
     if (search) {
-      const searchRegex = new RegExp(search.toString().trim(), 'i');
+      const escaped = escapeRegex(search.toString().trim());
+      const searchRegex = new RegExp(escaped, 'i');
       query.$or = [{ name: searchRegex }, { brand: searchRegex }, { description: searchRegex }];
     }
 

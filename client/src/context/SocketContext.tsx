@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { getAuthToken } from '../services/api';
 
 export interface LiveStockPayload {
   productId: string;
@@ -33,9 +34,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lastStockEvent, setLastStockEvent] = useState<LiveStockPayload | null>(null);
 
   useEffect(() => {
-    // Connect to server (proxied or origin)
+    // Connect to server with authentication token
+    const token = getAuthToken();
     const socketInstance = io('/', {
       transports: ['websocket', 'polling'],
+      auth: { token },
       reconnectionAttempts: 10,
       reconnectionDelay: 1000
     });

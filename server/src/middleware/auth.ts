@@ -7,8 +7,8 @@ export interface AuthRequest extends Request {
   user?: IUser;
 }
 
-export const generateToken = (userId: string, role: string): string => {
-  return jwt.sign({ id: userId, role }, ENV.JWT_SECRET, {
+export const generateToken = (userId: string, role: string, assignedStoreId?: string | null): string => {
+  return jwt.sign({ id: userId, role, assignedStoreId: assignedStoreId || null }, ENV.JWT_SECRET, {
     expiresIn: ENV.JWT_EXPIRES_IN as any
   });
 };

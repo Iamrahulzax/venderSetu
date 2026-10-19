@@ -29,7 +29,24 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 router.patch('/:id/read', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    await Notification.findByIdAndUpdate(id, { isRead: true });
+    const notification = await Notification.findById(id);
+
+    if (!notification) {
+      res.status(404).json({ success: false, message: 'Notification not found.' });
+      return;
+    }
+
+    const isUserOwner = notification.userId && notification.userId.toString() === req.user!._id.toString();
+    const isStoreOwner = notification.storeId && req.user?.assignedStoreId && notification.storeId.toString() === req.user.assignedStoreId.toString();
+    const isAdmin = req.user?.role === 'admin';
+
+    if (!isUserOwner && !isStoreOwner && !isAdmin) {
+      res.status(403).json({ success: false, message: 'Unauthorized to modify this notification.' });
+      return;
+    }
+
+    notification.isRead = true;
+    await notification.save();
     res.json({ success: true, message: 'Notification marked as read.' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

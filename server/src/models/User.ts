@@ -22,7 +22,7 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true, select: false },
     role: { type: String, enum: ['student', 'seller', 'admin'], default: 'student', index: true },
     phone: { type: String, trim: true },
     studentId: { type: String, trim: true },
@@ -32,7 +32,15 @@ const userSchema = new Schema<IUser>(
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     avatarUrl: { type: String }
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (_doc, ret: any) => {
+        delete ret.password;
+        return ret;
+      }
+    }
+  }
 );
 
 userSchema.pre('save', async function (next) {

@@ -4,6 +4,8 @@ import { Store } from '../models/Store.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { generateToken, AuthRequest } from '../middleware/auth.js';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password, role = 'student', phone, studentId, hostelRoom, storeSlug } = req.body;
@@ -12,6 +14,28 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
       return;
     }
+
+    if (typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
+      res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+      return;
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+      res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
+      return;
+    }
+
+    // CRITICAL SECURITY FIX: Prevent Privilege Escalation
+    // Admin role cannot be self-registered under any circumstances
+    if (role === 'admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: Admin accounts cannot be self-registered.'
+      });
+      return;
+    }
+
+    const assignedRole = role === 'seller' ? 'seller' : 'student';
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -22,31 +46,35 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     let assignedStoreId = null;
     let isApproved = true;
 
-    if (role === 'seller') {
+    if (assignedRole === 'seller') {
       if (storeSlug) {
         const store = await Store.findOne({ slug: storeSlug });
         if (store) {
           assignedStoreId = store._id;
         }
       }
-      // New self-registered sellers require approval if not pre-seeded
-      isApproved = true; // Auto-approve demo or pre-configured sellers
+      // Self-registered sellers require administrator approval
+      isApproved = false;
     }
 
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
       password,
-      role: ['student', 'seller', 'admin'].includes(role) ? role : 'student',
-      phone,
-      studentId,
-      hostelRoom,
+      role: assignedRole,
+      phone: phone ? phone.trim() : undefined,
+      studentId: studentId ? studentId.trim() : undefined,
+      hostelRoom: hostelRoom ? hostelRoom.trim() : undefined,
       assignedStoreId,
       isApproved,
       status: 'active'
     });
 
-    const token = generateToken(user._id.toString(), user.role);
+    const token = generateToken(
+      user._id.toString(),
+      user.role,
+      user.assignedStoreId ? user.assignedStoreId.toString() : null
+    );
 
     // Audit log
     await AuditLog.create({
@@ -59,7 +87,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({
       success: true,
-      message: 'Account registered successfully',
+      message: assignedRole === 'seller' && !isApproved
+        ? 'Seller account registered successfully. Pending administrator verification.'
+        : 'Account registered successfully',
       token,
       user: {
         id: user._id,
@@ -87,7 +117,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).populate('assignedStoreId');
+    // Explicitly select password since password field has select: false
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+password')
+      .populate('assignedStoreId');
+
     if (!user) {
       res.status(401).json({ success: false, message: 'Invalid email or password.' });
       return;
@@ -109,7 +143,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = generateToken(user._id.toString(), user.role);
+    const token = generateToken(
+      user._id.toString(),
+      user.role,
+      user.assignedStoreId ? (user.assignedStoreId._id || user.assignedStoreId).toString() : null
+    );
 
     res.json({
       success: true,
@@ -135,26 +173,42 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
   try {
     const { email, name, googleId } = req.body;
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       res.status(400).json({ success: false, message: 'Google email is required.' });
       return;
     }
 
-    let user = await User.findOne({ email: email.toLowerCase() }).populate('assignedStoreId');
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (!user) {
+    let user = await User.findOne({ email: normalizedEmail }).populate('assignedStoreId');
+
+    if (user) {
+      // CRITICAL SECURITY FIX: Prevent Account Hijacking
+      // High-privilege roles (admin, seller) cannot be logged into via untrusted OAuth payloads
+      if (user.role === 'admin' || user.role === 'seller') {
+        res.status(403).json({
+          success: false,
+          message: 'Security Notice: Administrator and Seller accounts must sign in using verified credentials.'
+        });
+        return;
+      }
+    } else {
       // Auto-register student via Google
       user = await User.create({
-        name: name || email.split('@')[0],
-        email: email.toLowerCase(),
-        password: `google_oauth_${Math.random().toString(36).slice(-8)}`,
+        name: name ? name.trim() : normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        password: `OAuth_${Date.now()}_${Math.random().toString(36).slice(2, 10)}!`,
         role: 'student',
         isApproved: true,
         status: 'active'
       });
     }
 
-    const token = generateToken(user._id.toString(), user.role);
+    const token = generateToken(
+      user._id.toString(),
+      user.role,
+      user.assignedStoreId ? (user.assignedStoreId._id || user.assignedStoreId).toString() : null
+    );
 
     res.json({
       success: true,

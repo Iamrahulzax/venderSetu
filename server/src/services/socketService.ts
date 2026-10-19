@@ -1,8 +1,15 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env.js';
 
 let io: Server | null = null;
+
+interface SocketUserPayload {
+  id: string;
+  role: string;
+  assignedStoreId?: string | null;
+}
 
 export const initSocket = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
@@ -12,15 +19,41 @@ export const initSocket = (httpServer: HttpServer): Server => {
     }
   });
 
-  io.on('connection', (socket: Socket) => {
-    // console.log(`[Socket.IO] Client connected: ${socket.id}`);
+  // Authentication middleware for Socket.IO
+  io.use((socket: Socket, next) => {
+    const token =
+      socket.handshake.auth?.token ||
+      (socket.handshake.headers?.authorization && socket.handshake.headers.authorization.split(' ')[1]) ||
+      socket.handshake.query?.token;
 
-    // Join marketplace room for general catalog and stock broadcasts
+    if (token && typeof token === 'string') {
+      try {
+        const decoded = jwt.verify(token, ENV.JWT_SECRET) as SocketUserPayload;
+        socket.data.user = decoded;
+      } catch (err) {
+        // Token invalid - socket will remain as unauthenticated guest
+      }
+    }
+    next();
+  });
+
+  io.on('connection', (socket: Socket) => {
+    // Marketplace room is public for stock updates
     socket.join('marketplace');
 
-    // Allow joining store-specific room (e.g. for store sellers or customers viewing a store)
+    // Secure store room: only allowed if user is Admin or assigned Seller of that store
     socket.on('join:store', (storeId: string) => {
-      if (storeId) {
+      if (!storeId) return;
+      const user = socket.data.user as SocketUserPayload | undefined;
+      if (!user) return; // Prevent anonymous eavesdropping on store orders
+
+      const isAdmin = user.role === 'admin';
+      const isStoreSeller =
+        user.role === 'seller' &&
+        user.assignedStoreId &&
+        user.assignedStoreId.toString() === storeId.toString();
+
+      if (isAdmin || isStoreSeller) {
         socket.join(`store:${storeId}`);
       }
     });
@@ -31,9 +64,13 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
-    // Allow joining user-specific room (for order tracking notifications)
+    // Secure user room: only allowed if user is joining their own room or is Admin
     socket.on('join:user', (userId: string) => {
-      if (userId) {
+      if (!userId) return;
+      const user = socket.data.user as SocketUserPayload | undefined;
+      if (!user) return; // Prevent anonymous eavesdropping on user notifications
+
+      if (user.id.toString() === userId.toString() || user.role === 'admin') {
         socket.join(`user:${userId}`);
       }
     });

@@ -20,27 +20,27 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(!src);
 
-  // Default clean placeholder if no image provided
-  const placeholderFallback =
-    fallbackSrc ||
-    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+  // If no src is provided, immediately treat as unavailable without requesting fake images
+  const effectiveSrc = src || fallbackSrc;
 
   return (
     <div className={cn('relative w-full h-full overflow-hidden bg-stone-100 flex items-center justify-center', containerClassName)}>
-      {!loaded && !hasError && (
+      {!loaded && !hasError && effectiveSrc && (
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
       )}
 
-      {hasError ? (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-400 p-2 text-center">
-          <ImageOff className="w-6 h-6 mb-1 opacity-50" />
-          <span className="text-[10px] font-medium text-stone-400">Image Unavailable</span>
+      {hasError || !effectiveSrc ? (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-stone-50 border border-dashed border-stone-200 text-stone-400 p-2 text-center select-none">
+          <ImageOff className="w-6 h-6 mb-1 text-stone-300 stroke-[1.5]" />
+          <span className="text-[10px] font-medium text-stone-500">Image Unavailable</span>
+          <span className="text-[9px] text-stone-400 mt-0.5">Awaiting merchant photo</span>
         </div>
       ) : (
         <img
-          src={src || placeholderFallback}
+          src={effectiveSrc}
           alt={alt}
           loading="lazy"
+          decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => {
             setHasError(true);

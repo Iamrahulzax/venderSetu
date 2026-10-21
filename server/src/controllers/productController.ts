@@ -6,6 +6,8 @@ import { InventoryMovement, MovementType } from '../models/InventoryMovement.js'
 import { Notification } from '../models/Notification.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { broadcastStockUpdate } from '../services/socketService.js';
+import { lookupProductImage } from '../services/imageLookupService.js';
+import { populateRealProductImages } from '../scripts/populateRealProductImages.js';
 
 // Get all active products for the student marketplace
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
@@ -69,8 +71,14 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       description: p.description,
       brand: p.brand,
       category: p.category,
-      image: p.image,
+      image: p.imageUrl || p.image,
+      imageUrl: p.imageUrl || p.image,
       images: p.images || (p.image ? [p.image] : []),
+      imageSource: p.imageSource || 'curated',
+      imageAttribution: p.imageAttribution || '',
+      imageLicense: p.imageLicense || '',
+      imageVerified: Boolean(p.imageVerified),
+      barcode: p.barcode || '',
       unit: p.unit,
       variant: p.variant,
       variants: p.variants || [],
@@ -189,7 +197,13 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       brand,
       category,
       image,
+      imageUrl,
       images,
+      imageSource,
+      imageAttribution,
+      imageLicense,
+      imageVerified,
+      barcode,
       unit,
       variant,
       variants,
@@ -230,7 +244,8 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const imageArray = Array.isArray(images) && images.length > 0 ? images : image ? [image] : [];
+    const effectiveImg = imageUrl || image || '';
+    const imageArray = Array.isArray(images) && images.length > 0 ? images : effectiveImg ? [effectiveImg] : [];
 
     const product = await Product.create({
       storeId: targetStoreId,
@@ -238,8 +253,14 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
       description: description || '',
       brand: brand.trim(),
       category: category.toLowerCase().trim(),
-      image: image || (imageArray[0] || ''),
+      image: effectiveImg || (imageArray[0] || ''),
+      imageUrl: effectiveImg || (imageArray[0] || ''),
       images: imageArray,
+      imageSource: imageSource || (effectiveImg.includes('/uploads/') ? 'merchant' : 'curated'),
+      imageAttribution: imageAttribution || (effectiveImg.includes('/uploads/') ? 'Uploaded by campus merchant' : ''),
+      imageLicense: imageLicense || (effectiveImg.includes('/uploads/') ? 'Merchant Authorized Food Photo' : ''),
+      imageVerified: imageVerified !== undefined ? Boolean(imageVerified) : Boolean(effectiveImg),
+      barcode: barcode ? barcode.trim() : undefined,
       unit: unit || '1 unit',
       variant: variant || 'Standard',
       variants: Array.isArray(variants) ? variants : [],
@@ -317,7 +338,13 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
       brand,
       category,
       image,
+      imageUrl,
       images,
+      imageSource,
+      imageAttribution,
+      imageLicense,
+      imageVerified,
+      barcode,
       unit,
       variant,
       variants,
@@ -341,8 +368,19 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     if (description !== undefined) product.description = description;
     if (brand) product.brand = brand.trim();
     if (category) product.category = category.toLowerCase().trim();
-    if (image !== undefined) product.image = image;
+    if (imageUrl !== undefined) {
+      product.imageUrl = imageUrl;
+      product.image = imageUrl;
+    } else if (image !== undefined) {
+      product.image = image;
+      product.imageUrl = image;
+    }
     if (images !== undefined) product.images = Array.isArray(images) ? images : [images];
+    if (imageSource !== undefined) product.imageSource = imageSource;
+    if (imageAttribution !== undefined) product.imageAttribution = imageAttribution;
+    if (imageLicense !== undefined) product.imageLicense = imageLicense;
+    if (imageVerified !== undefined) product.imageVerified = Boolean(imageVerified);
+    if (barcode !== undefined) product.barcode = barcode ? barcode.trim() : undefined;
     if (unit) product.unit = unit;
     if (variant) product.variant = variant;
     if (variants !== undefined) product.variants = Array.isArray(variants) ? variants : [];
@@ -571,3 +609,61 @@ export const adjustStock = async (req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Lookup genuine product image via Open Food Facts / Barcode / Catalog
+export const lookupProductImageHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, brand, barcode, variant, unit } = req.query;
+
+    if (!name && !barcode) {
+      res.status(400).json({
+        success: false,
+        message: 'Either product name or barcode is required for image lookup.'
+      });
+      return;
+    }
+
+    const result = await lookupProductImage({
+      name: (name || '').toString(),
+      brand: (brand || '').toString(),
+      barcode: barcode ? barcode.toString() : undefined,
+      variant: variant ? variant.toString() : undefined,
+      unit: unit ? unit.toString() : undefined
+    });
+
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        message: 'No verified authentic product photograph found. Please upload a genuine photo.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin trigger to bulk populate real product photos
+export const populateRealImagesHandler = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ success: false, message: 'Unauthorized. Only admins can trigger bulk image population.' });
+      return;
+    }
+
+    const report = await populateRealProductImages();
+    res.json({
+      success: true,
+      message: `Image population complete. Matched: ${report.matchedCount}, Skipped: ${report.skippedMerchantCount}, Pending: ${report.manualReviewNeeded.length}`,
+      report
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

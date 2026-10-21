@@ -6,7 +6,8 @@ import {
   Store as StoreIcon,
   Clock,
   Sparkles,
-  ArrowRightLeft
+  ArrowRightLeft,
+  CheckCircle2
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useSocket } from '../context/SocketContext';
@@ -47,7 +48,13 @@ export interface ProductItem {
   availableStock?: number;
   lowStockThreshold: number;
   image?: string;
+  imageUrl?: string;
   images?: string[];
+  imageSource?: string;
+  imageAttribution?: string;
+  imageLicense?: string;
+  imageVerified?: boolean;
+  barcode?: string;
   description?: string;
   isComparable?: boolean;
   comparableGroupKey?: string;
@@ -124,10 +131,17 @@ export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => 
           {/* Card Media with Real Photography */}
           <CardMedia aspectRatio="aspect-[4/3]">
             <ImageWithFallback
-              src={product.image}
+              src={product.imageUrl || product.image}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
+
+            {product.imageVerified && (
+              <span className="absolute bottom-2 left-2 bg-emerald-950/80 backdrop-blur-md text-emerald-300 text-[9px] font-semibold px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm border border-emerald-500/30 pointer-events-none">
+                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                <span>Real Photo</span>
+              </span>
+            )}
 
             {/* Store Pill */}
             <Link

@@ -9,7 +9,8 @@ import {
   Minus,
   Plus,
   Sparkles,
-  Info
+  Info,
+  CheckCircle2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/Dialog';
 import { Button } from './ui/Button';
@@ -118,10 +119,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Product Media Banner with Badges */}
         <div className="relative aspect-[16/9] sm:aspect-[2/1] w-full bg-stone-100 overflow-hidden">
           <ImageWithFallback
-            src={product.image}
+            src={product.imageUrl || product.image}
             alt={product.name}
             className="w-full h-full object-cover"
           />
+
+          {/* Genuine Image Attribution & Licensing Badge */}
+          {product.imageVerified && (
+            <div className="absolute bottom-3 left-3 bg-stone-950/85 backdrop-blur-md text-stone-200 text-[10px] px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5 shadow-sm max-w-[85%] pointer-events-none">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">
+                {product.imageAttribution || 'Authentic Product Photo'}
+                {product.imageLicense ? ` • ${product.imageLicense}` : ''}
+              </span>
+            </div>
+          )}
 
           {/* Store Pill */}
           <Link

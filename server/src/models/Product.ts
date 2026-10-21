@@ -20,7 +20,13 @@ export interface IProduct extends Document {
   brand: string;
   category: ProductCategory;
   image: string;
+  imageUrl?: string;
   images?: string[];
+  imageSource?: 'openfoodfacts' | 'merchant' | 'wikimedia' | 'licensed' | 'official' | 'curated';
+  imageAttribution?: string;
+  imageLicense?: string;
+  imageVerified?: boolean;
+  barcode?: string;
   unit: string;
   variant: string;
   variants?: IProductVariant[];
@@ -58,7 +64,17 @@ const productSchema = new Schema<IProduct>(
       index: true
     },
     image: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
     images: [{ type: String }],
+    imageSource: {
+      type: String,
+      enum: ['openfoodfacts', 'merchant', 'wikimedia', 'licensed', 'official', 'curated'],
+      default: 'curated'
+    },
+    imageAttribution: { type: String, default: '' },
+    imageLicense: { type: String, default: '' },
+    imageVerified: { type: Boolean, default: false },
+    barcode: { type: String, trim: true, index: true },
     unit: { type: String, default: '1 unit' },
     variant: { type: String, default: 'Standard' },
     variants: [
@@ -93,9 +109,19 @@ const productSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
-// Compound index for store & name
+// Compound indexes
 productSchema.index({ storeId: 1, name: 1 });
 productSchema.index({ category: 1, isActive: 1 });
 productSchema.index({ storeId: 1, isAvailable: 1 });
+
+// Ensure image and imageUrl are kept in sync
+productSchema.pre('save', function (next) {
+  if (this.imageUrl && !this.image) {
+    this.image = this.imageUrl;
+  } else if (this.image && !this.imageUrl) {
+    this.imageUrl = this.image;
+  }
+  next();
+});
 
 export const Product = mongoose.model<IProduct>('Product', productSchema);

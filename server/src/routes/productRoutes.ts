@@ -7,7 +7,9 @@ import {
   updateProduct,
   toggleAvailability,
   deleteProduct,
-  adjustStock
+  adjustStock,
+  lookupProductImageHandler,
+  populateRealImagesHandler
 } from '../controllers/productController.js';
 import { authenticate, requireRoles } from '../middleware/auth.js';
 
@@ -15,6 +17,8 @@ const router = Router();
 
 router.get('/', getProducts);
 router.get('/compare', getComparableProducts);
+router.get('/lookup-image', lookupProductImageHandler);
+router.post('/populate-real-images', authenticate, requireRoles(['admin']), populateRealImagesHandler);
 router.get('/:id', getProductById);
 
 router.post('/', authenticate, requireRoles(['seller', 'admin']), createProduct);

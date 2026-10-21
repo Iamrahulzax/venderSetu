@@ -4,6 +4,7 @@ import { User } from './models/User.js';
 import { Store } from './models/Store.js';
 import { Product } from './models/Product.js';
 import { InventoryMovement } from './models/InventoryMovement.js';
+import { lookupProductImage } from './services/imageLookupService.js';
 
 const seedDatabase = async () => {
   try {
@@ -909,6 +910,16 @@ const seedDatabase = async () => {
 
     for (const item of productsData) {
       const store = storeMap.get(item.storeSlug)!;
+      const lookup = await lookupProductImage({
+        name: item.name,
+        brand: item.brand,
+        variant: item.variant,
+        unit: item.unit,
+        category: item.category
+      });
+
+      const effectiveImg = lookup?.imageUrl || item.image;
+
       const product = await Product.create({
         name: item.name,
         storeId: store._id,
@@ -930,8 +941,14 @@ const seedDatabase = async () => {
         comparableGroupKey: item.comparableGroupKey,
         sku: item.sku,
         description: item.description,
-        image: item.image,
-        images: [item.image],
+        image: effectiveImg,
+        imageUrl: effectiveImg,
+        images: [effectiveImg],
+        barcode: lookup?.barcode,
+        imageSource: lookup?.imageSource || 'curated',
+        imageAttribution: lookup?.imageAttribution || '',
+        imageLicense: lookup?.imageLicense || '',
+        imageVerified: true,
         isActive: true
       });
 

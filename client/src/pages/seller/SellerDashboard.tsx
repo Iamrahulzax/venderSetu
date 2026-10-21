@@ -29,7 +29,8 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldAlert,
-  BellRing
+  BellRing,
+  Barcode
 } from 'lucide-react';
 import { apiRequest } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -107,6 +108,12 @@ export const SellerDashboard: React.FC = () => {
   const [pThreshold, setPThreshold] = useState<number>(5);
   const [pDescription, setPDescription] = useState('');
   const [pImage, setPImage] = useState('');
+  const [pBarcode, setPBarcode] = useState('');
+  const [pImageSource, setPImageSource] = useState('merchant');
+  const [pImageAttribution, setPImageAttribution] = useState('');
+  const [pImageLicense, setPImageLicense] = useState('');
+  const [isLookingUpImage, setIsLookingUpImage] = useState(false);
+  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
   const [pIsVeg, setPIsVeg] = useState(true);
   const [pIsAvailable, setPIsAvailable] = useState(true);
   const [pSku, setPSku] = useState('');
@@ -240,6 +247,11 @@ export const SellerDashboard: React.FC = () => {
     setPThreshold(5);
     setPDescription('');
     setPImage('');
+    setPBarcode('');
+    setPImageSource('merchant');
+    setPImageAttribution('');
+    setPImageLicense('');
+    setLookupMessage(null);
     setPIsVeg(true);
     setPIsAvailable(true);
     setPSku('');
@@ -264,7 +276,12 @@ export const SellerDashboard: React.FC = () => {
     setPStock(prod.stock);
     setPThreshold(prod.lowStockThreshold);
     setPDescription(prod.description || '');
-    setPImage(prod.image || '');
+    setPImage(prod.imageUrl || prod.image || '');
+    setPBarcode(prod.barcode || '');
+    setPImageSource(prod.imageSource || 'merchant');
+    setPImageAttribution(prod.imageAttribution || '');
+    setPImageLicense(prod.imageLicense || '');
+    setLookupMessage(null);
     setPIsVeg(prod.isVeg !== false);
     setPIsAvailable(prod.isAvailable !== false);
     setPSku(prod.sku || '');
@@ -274,6 +291,37 @@ export const SellerDashboard: React.FC = () => {
     setPVariants(prod.variants || []);
     setPAddons(prod.addons || []);
     setProductModalOpen(true);
+  };
+
+  const handleAutoLookupImage = async () => {
+    if (!pName && !pBarcode) {
+      setLookupMessage('Please enter an item name or barcode first.');
+      return;
+    }
+    try {
+      setIsLookingUpImage(true);
+      setLookupMessage(null);
+      const queryParams = new URLSearchParams();
+      if (pBarcode) queryParams.set('barcode', pBarcode.trim());
+      if (pName) queryParams.set('name', pName.trim());
+      if (pBrand) queryParams.set('brand', pBrand.trim());
+
+      const res = await apiRequest(`/products/lookup-image?${queryParams.toString()}`);
+      if (res.success && res.data) {
+        setPImage(res.data.imageUrl);
+        setPImageSource(res.data.imageSource);
+        setPImageAttribution(res.data.imageAttribution || '');
+        setPImageLicense(res.data.imageLicense || '');
+        if (res.data.barcode && !pBarcode) {
+          setPBarcode(res.data.barcode);
+        }
+        setLookupMessage(`✓ Matched authentic photo (${res.data.imageSource.toUpperCase()})`);
+      }
+    } catch (err: any) {
+      setLookupMessage(err.message || 'No automatic match found. Please upload a genuine photo.');
+    } finally {
+      setIsLookingUpImage(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -291,6 +339,12 @@ export const SellerDashboard: React.FC = () => {
         lowStockThreshold: Number(pThreshold),
         description: pDescription,
         image: pImage,
+        imageUrl: pImage,
+        barcode: pBarcode || undefined,
+        imageSource: pImageSource || 'merchant',
+        imageAttribution: pImageAttribution,
+        imageLicense: pImageLicense,
+        imageVerified: Boolean(pImage),
         isVeg: pIsVeg,
         isAvailable: pIsAvailable,
         sku: pSku || undefined,
@@ -1536,12 +1590,60 @@ export const SellerDashboard: React.FC = () => {
           </DialogHeader>
 
           <form onSubmit={handleSaveProduct} className="space-y-4 pt-2">
-            {/* Product Image Uploader */}
-            <FileUploadZone
-              label="Product Photography / Image"
-              value={pImage}
-              onChange={(url) => setPImage(url)}
-            />
+            {/* Real Product Image & Barcode Lookup Section */}
+            <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                  <Barcode className="w-4 h-4 text-emerald-600" />
+                  <span>Product Packaging & Barcode</span>
+                </span>
+                <span className="text-[10px] text-stone-400">Open Food Facts Verified</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2 space-y-1">
+                  <Label className="text-[11px]">EAN / UPC Barcode (for Packaged Snacks & Drinks)</Label>
+                  <Input
+                    value={pBarcode}
+                    onChange={(e) => setPBarcode(e.target.value)}
+                    placeholder="e.g. 8901491100519 (Kurkure), 8901058905274 (Maggi)"
+                    className="text-xs"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs font-medium border-emerald-300 text-emerald-800 hover:bg-emerald-50 h-9"
+                    onClick={handleAutoLookupImage}
+                    disabled={isLookingUpImage}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                    <span>{isLookingUpImage ? 'Searching...' : 'Auto-Match Photo'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {lookupMessage && (
+                <div className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{lookupMessage}</span>
+                </div>
+              )}
+
+              {/* Product Image Uploader */}
+              <FileUploadZone
+                label="Product Photography (Merchant Upload / Preview)"
+                value={pImage}
+                onChange={(url) => {
+                  setPImage(url);
+                  setPImageSource('merchant');
+                  setPImageAttribution('Uploaded by campus merchant');
+                  setPImageLicense('Merchant Authorized Food Photo');
+                }}
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">

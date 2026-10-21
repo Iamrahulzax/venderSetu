@@ -147,13 +147,13 @@ export const StoreDetailPage: React.FC = () => {
       {/* Hero Store Profile Banner */}
       <div className="relative rounded-3xl border border-stone-200/90 overflow-hidden bg-white shadow-sm">
         {store.bannerImage && (
-          <div className="h-44 sm:h-52 w-full overflow-hidden relative">
+          <div className="h-56 sm:h-72 w-full overflow-hidden relative">
             <img
               src={store.bannerImage}
               alt={store.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/20 to-transparent" />
           </div>
         )}
 

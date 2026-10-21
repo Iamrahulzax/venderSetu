@@ -158,46 +158,69 @@ export const HomePage: React.FC = () => {
             <Link
               key={store._id}
               to={`/stores/${store.slug}`}
-              className="bg-white p-4 rounded-2xl border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group flex flex-col justify-between overflow-hidden"
             >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
-                    <StoreIcon className="w-4 h-4" />
-                  </div>
+              {store.bannerImage && (
+                <div className="h-28 w-full relative overflow-hidden bg-slate-100">
+                  <img
+                    src={store.bannerImage}
+                    alt={store.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md shadow-sm ${
                       store.isOpen
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-rose-100 text-rose-800'
+                        ? 'bg-emerald-500/90 text-white'
+                        : 'bg-slate-900/80 text-rose-300'
                     }`}
                   >
                     {store.isOpen ? 'Open Now' : 'Closed'}
                   </span>
                 </div>
+              )}
+              <div className="p-4 flex flex-col justify-between flex-1">
+                <div>
+                  {!store.bannerImage && (
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
+                        <StoreIcon className="w-4 h-4" />
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          store.isOpen
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {store.isOpen ? 'Open Now' : 'Closed'}
+                      </span>
+                    </div>
+                  )}
 
-                <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors line-clamp-1">
-                  {store.name}
-                </h3>
-                <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{store.description}</p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 space-y-1 text-[11px] text-slate-600">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center space-x-1 text-slate-400">
-                    <Clock className="w-3 h-3" />
-                    <span>Prep Time</span>
-                  </span>
-                  <span className="font-medium text-slate-700">{store.estimatedPrepTime}</span>
+                  <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors line-clamp-1">
+                    {store.name}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{store.description}</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center space-x-1 text-slate-400">
-                    <Bike className="w-3 h-3" />
-                    <span>Delivery</span>
-                  </span>
-                  <span className="font-medium text-slate-700">
-                    {store.offersDelivery ? `₹${store.deliveryFee}` : 'Pickup Only'}
-                  </span>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 space-y-1 text-[11px] text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center space-x-1 text-slate-400">
+                      <Clock className="w-3 h-3" />
+                      <span>Prep Time</span>
+                    </span>
+                    <span className="font-medium text-slate-700">{store.estimatedPrepTime}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center space-x-1 text-slate-400">
+                      <Bike className="w-3 h-3" />
+                      <span>Delivery</span>
+                    </span>
+                    <span className="font-medium text-slate-700">
+                      {store.offersDelivery ? `₹${store.deliveryFee}` : 'Pickup Only'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </Link>

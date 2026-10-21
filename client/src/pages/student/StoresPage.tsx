@@ -286,7 +286,17 @@ export const StoresPage: React.FC = () => {
                 className="bg-white rounded-3xl border border-slate-200 hover:border-emerald-300 hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
               >
                 {/* Store Top Graphic Banner */}
-                <div className={`p-6 bg-gradient-to-r ${theme.gradient} text-white relative`}>
+                <div className={`p-6 bg-gradient-to-r ${theme.gradient} text-white relative overflow-hidden`}>
+                  {store.bannerImage && (
+                    <>
+                      <img
+                        src={store.bannerImage}
+                        alt={store.name}
+                        className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/60 to-slate-900/40" />
+                    </>
+                  )}
                   <div className="flex items-start justify-between relative z-10">
                     <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner group-hover:scale-105 transition-transform">
                       <ThemeIcon className="w-6 h-6" />
@@ -311,7 +321,7 @@ export const StoresPage: React.FC = () => {
                   </div>
 
                   <div className="mt-4 relative z-10">
-                    <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-black/20 text-white/90">
+                    <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-black/30 backdrop-blur-sm text-white/95">
                       {theme.tag}
                     </span>
                     <h2 className="text-xl font-bold tracking-tight text-white mt-1">

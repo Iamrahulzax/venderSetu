@@ -84,12 +84,12 @@ const seedDatabase = async () => {
         deliveryFee: 0,
         minimumOrder: 50,
         estimatedPrepTime: '12-18 mins',
-        bannerImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+        bannerImage: '/stores/monal.png',
         categoryTags: ['momos', 'sandwiches', 'chinese', 'combos', 'cold drinks'],
         menuDocuments: [
           {
             title: 'Monal Fast Food Authentic Tibetan & Fast Food Card',
-            fileUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+            fileUrl: '/stores/monal.png',
             fileType: 'image' as const,
             uploadedAt: new Date()
           }
@@ -124,7 +124,7 @@ const seedDatabase = async () => {
         deliveryFee: 10,
         minimumOrder: 60,
         estimatedPrepTime: '10-15 mins',
-        bannerImage: 'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1200&q=80',
+        bannerImage: '/stores/devbhoomi.jpg',
         categoryTags: ['groceries', 'daily essentials', 'biscuits', 'cold drinks', 'stationery']
       }
     ];

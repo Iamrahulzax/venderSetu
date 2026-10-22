@@ -8,6 +8,10 @@
     "seed": "npm run seed --prefix server",
     "test": "npm run test --prefix server"
   },
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "devDependencies": {
     "concurrently": "^9.2.5"
   }

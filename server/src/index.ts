@@ -17,6 +17,7 @@ import sellerRoutes from './routes/sellerRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import supabaseRoutes from './routes/supabaseRoutes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +104,16 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Ensure Database is connected for all API requests (essential for serverless cold-starts)
+app.use('/api', async (_req, _res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/stores', storeRoutes);
@@ -113,6 +124,7 @@ app.use('/api/seller', sellerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/supabase', supabaseRoutes);
 
 // Error Handling Middleware (prevents leaking internal details in production)
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -131,7 +143,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Start Server
+// Start Server (only standalone if not running on Vercel serverless)
 const startServer = async () => {
   await connectDB();
   server.listen(ENV.PORT, () => {
@@ -140,7 +152,7 @@ const startServer = async () => {
   });
 };
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   startServer();
 }
 

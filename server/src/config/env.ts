@@ -11,5 +11,8 @@ export const ENV = {
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_campus_vendersetu',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || 'rzp_secret_dummy_campus_key',
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
-  NODE_ENV: process.env.NODE_ENV || 'development'
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  SUPABASE_URL: process.env.SUPABASE_URL || 'https://aaifibfkfzkqkipdolxg.supabase.co',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || 'sb_publishable_xZ603UnH1N8UwS8aRPHpfw_f4HJ9nMP',
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 };

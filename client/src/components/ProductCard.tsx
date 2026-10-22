@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ShoppingCart,
   Check,
+  Plus,
+  Star,
+  Sparkles,
   Store as StoreIcon,
   Clock,
-  Sparkles,
-  ArrowRightLeft,
-  CheckCircle2
+  ArrowRightLeft
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
-import { Card, CardMedia, CardBody, CardTitle, CardText, CardFooter } from './ui/Card';
-import { Button } from './ui/Button';
-import { Badge, VegBadge } from './ui/Badge';
 import { ImageWithFallback } from './ui/ImageWithFallback';
 import { ProductDetailModal } from './ProductDetailModal';
 
@@ -43,6 +40,12 @@ export interface ProductItem {
   prepTime?: string;
   isAvailable?: boolean;
   sellingPrice: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  badge?: string;
+  secondaryBadge?: string;
+  rating?: number;
+  ratingCount?: number;
   stock: number;
   reservedStock?: number;
   availableStock?: number;
@@ -71,7 +74,10 @@ export interface ProductItem {
   };
 }
 
-export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => {
+export const ProductCard: React.FC<{
+  product: ProductItem;
+  currencySymbol?: string;
+}> = ({ product, currencySymbol = '₹' }) => {
   const { addToCart } = useCart();
   const { liveStocks } = useSocket();
   const { user } = useAuth();
@@ -80,13 +86,11 @@ export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => 
   const [adding, setAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  // Check if live stock update exists for this product
+  // Live stock from socket if available
   const live = liveStocks[product._id];
   const currentStock = live ? live.stock : product.stock;
-  const currentAvailable = live ? live.availableStock : (product.availableStock ?? currentStock);
   const isOutOfStock = currentStock <= 0;
   const isTemporarilyUnavailable = product.isAvailable === false;
-  const isLowStock = currentStock > 0 && currentStock <= product.lowStockThreshold;
 
   const hasVariantsOrAddons =
     (product.variants && product.variants.length > 0) ||
@@ -95,7 +99,6 @@ export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => 
   const handleQuickAdd = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // If item has variants or add-ons, open modal for customization
     if (hasVariantsOrAddons) {
       setModalOpen(true);
       return;
@@ -112,7 +115,7 @@ export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => 
       setAdding(true);
       await addToCart(product._id, 1);
       setJustAdded(true);
-      setTimeout(() => setJustAdded(false), 1500);
+      setTimeout(() => setJustAdded(false), 1200);
     } catch (err: any) {
       alert(err.message || 'Failed to add item to cart');
     } finally {
@@ -120,152 +123,149 @@ export const ProductCard: React.FC<{ product: ProductItem }> = ({ product }) => 
     }
   };
 
+  // Determine badge styles matching reference design
+  const primaryBadge = product.badge;
+  const secondaryBadge = product.secondaryBadge;
+
+  const getBadgeStyle = (badgeName: string) => {
+    const lower = badgeName.toLowerCase();
+    if (lower.includes('best sale') || lower.includes('sale') || lower.includes('hot')) {
+      return 'bg-[#991b1b] text-white'; // Deep red / burgundy
+    }
+    if (lower.includes('frozen') || lower.includes('ice')) {
+      return 'bg-[#d97706] text-white'; // Golden amber
+    }
+    if (lower.includes('off') || lower.includes('discount') || lower.includes('%')) {
+      return 'bg-[#ea580c] text-white'; // Orange
+    }
+    if (lower.includes('organic') || lower.includes('fresh')) {
+      return 'bg-[#059669] text-white'; // Emerald green
+    }
+    return 'bg-slate-800 text-white';
+  };
+
+  const displayRating = product.rating ? product.rating.toFixed(1) : '4.8';
+
   return (
     <>
-      <Card
-        interactive
+      <div
         onClick={() => setModalOpen(true)}
-        className="flex flex-col justify-between h-full bg-white border-stone-200"
+        className="group relative flex flex-col justify-between bg-white rounded-2xl border border-slate-100 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 p-3.5 cursor-pointer overflow-hidden"
       >
-        <div>
-          {/* Card Media with Real Photography */}
-          <CardMedia aspectRatio="aspect-[4/3]">
-            <ImageWithFallback
-              src={product.imageUrl || product.image}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-
-            {product.imageVerified && (
-              <span className="absolute bottom-2 left-2 bg-emerald-950/80 backdrop-blur-md text-emerald-300 text-[9px] font-semibold px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm border border-emerald-500/30 pointer-events-none">
-                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                <span>Real Photo</span>
+        {/* Top Badges Row */}
+        <div className="flex items-center justify-between w-full min-h-[22px] mb-2 pointer-events-none z-10">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {primaryBadge && (
+              <span
+                className={`text-[9.5px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shadow-xs ${getBadgeStyle(
+                  primaryBadge
+                )}`}
+              >
+                {primaryBadge}
               </span>
             )}
-
-            {/* Store Pill */}
-            <Link
-              to={`/stores/${product.store.slug || product.store._id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-md text-stone-800 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm flex items-center space-x-1 hover:bg-white hover:text-emerald-700 transition-colors"
-            >
-              <StoreIcon className="w-3 h-3 text-emerald-600" />
-              <span className="truncate max-w-[110px]">{product.store.name}</span>
-            </Link>
-
-            {/* Availability & Stock Badges */}
-            <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-              {isTemporarilyUnavailable ? (
-                <Badge variant="outOfStock">Unavailable</Badge>
-              ) : isOutOfStock ? (
-                <Badge variant="outOfStock">Out of Stock</Badge>
-              ) : isLowStock ? (
-                <Badge variant="lowStock">Low Stock ({currentAvailable})</Badge>
-              ) : null}
-            </div>
-
-            {/* Preparation time tag bottom right of media if provided */}
-            {product.prepTime && (
-              <div className="absolute bottom-2 right-2 bg-stone-950/80 backdrop-blur-sm text-stone-200 text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                <Clock className="w-2.5 h-2.5 text-amber-400" />
-                <span>{product.prepTime}</span>
-              </div>
-            )}
-          </CardMedia>
-
-          {/* Card Body */}
-          <CardBody>
-            <div className="flex items-center justify-between gap-1 mb-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 truncate">
-                {product.brand || product.category}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                <VegBadge isVeg={product.isVeg !== false} />
-                {product.isComparable && (
-                  <Link
-                    to="/compare"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Compare prices across campus stores"
-                    className="text-amber-600 hover:text-amber-700 p-0.5 rounded"
-                  >
-                    <ArrowRightLeft className="w-3 h-3" />
-                  </Link>
-                )}
-              </div>
-            </div>
-
-            <CardTitle className="line-clamp-1">{product.name}</CardTitle>
-
-            {product.description && (
-              <CardText className="line-clamp-2">{product.description}</CardText>
-            )}
-
-            {/* Serving size or variant tag */}
-            {(product.servingSize || product.unit) && (
-              <span className="text-[11px] text-stone-400 font-medium">
-                {product.servingSize || product.unit}
+            {isOutOfStock && !primaryBadge && (
+              <span className="text-[9.5px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-slate-200 text-slate-700">
+                Sold Out
               </span>
             )}
-          </CardBody>
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            {secondaryBadge && (
+              <span
+                className={`text-[9.5px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shadow-xs ${getBadgeStyle(
+                  secondaryBadge
+                )}`}
+              >
+                {secondaryBadge}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Card Footer with Price and Action Button */}
-        <div className="px-4 pb-4">
-          <CardFooter className="pt-2">
-            <div>
-              <div className="text-base font-bold text-stone-900 tracking-tight">
-                ₹{product.sellingPrice}
-                {hasVariantsOrAddons && (
-                  <span className="text-[10px] font-normal text-stone-400 ml-1">onwards</span>
-                )}
+        {/* Product Image Area */}
+        <div className="relative w-full h-36 sm:h-44 flex items-center justify-center p-2 mb-2 bg-[#fafafa] rounded-xl overflow-hidden group-hover:bg-slate-50/80 transition-colors">
+          <ImageWithFallback
+            src={product.imageUrl || product.image}
+            alt={product.name}
+            className="w-full h-full object-contain group-hover:scale-108 transition-transform duration-300 drop-shadow-sm"
+          />
+
+          {/* Quick store tag */}
+          {product.store && (
+            <span className="absolute bottom-1.5 left-1.5 text-[9px] font-medium text-slate-400 bg-white/80 backdrop-blur-xs px-1.5 py-0.5 rounded">
+              {product.store.name}
+            </span>
+          )}
+        </div>
+
+        {/* Product Metadata & Title */}
+        <div className="flex-1 flex flex-col justify-between space-y-1">
+          <div>
+            <h3 className="text-xs sm:text-sm font-semibold text-slate-800 line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors">
+              {product.name}
+            </h3>
+
+            {/* Pack / Weight & Rating Row */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-slate-400 font-medium">
+                {product.unit || '1000gm'}
+              </span>
+
+              <div className="flex items-center space-x-1 text-[11px] text-slate-600 font-medium">
+                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                <span>({displayRating}/5)</span>
               </div>
-              {product.unit && !hasVariantsOrAddons && (
-                <span className="text-[10px] text-stone-400 block -mt-0.5">
-                  per {product.unit}
+            </div>
+          </div>
+
+          {/* Price & Add to Cart Circle Button */}
+          <div className="pt-2.5 flex items-center justify-between border-t border-slate-50 mt-1">
+            <div className="flex items-baseline space-x-1.5">
+              <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                {currencySymbol}
+                {product.sellingPrice % 1 === 0 ? product.sellingPrice : product.sellingPrice.toFixed(2)}
+              </span>
+              {product.originalPrice && product.originalPrice > product.sellingPrice && (
+                <span className="text-[11px] text-slate-400 line-through">
+                  {currencySymbol}
+                  {product.originalPrice % 1 === 0 ? product.originalPrice : product.originalPrice.toFixed(2)}
                 </span>
               )}
             </div>
 
-            <Button
-              variant={
-                justAdded
-                  ? 'campus'
-                  : isOutOfStock || isTemporarilyUnavailable
-                  ? 'soft'
-                  : hasVariantsOrAddons
-                  ? 'outline'
-                  : 'solid'
-              }
-              size="sm"
-              disabled={isOutOfStock || isTemporarilyUnavailable || adding}
-              loading={adding}
+            {/* Circular Green Plus Button */}
+            <button
+              type="button"
               onClick={handleQuickAdd}
-              className="text-xs shrink-0"
+              disabled={isOutOfStock || isTemporarilyUnavailable || adding}
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 shadow-xs ${
+                justAdded
+                  ? 'bg-emerald-600 text-white scale-105'
+                  : isOutOfStock || isTemporarilyUnavailable
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#0d5435] hover:bg-[#073c24] text-white hover:scale-105'
+              }`}
+              title={
+                hasVariantsOrAddons
+                  ? 'Customize item'
+                  : isOutOfStock
+                  ? 'Sold out'
+                  : 'Add to cart'
+              }
             >
               {justAdded ? (
-                <>
-                  <Check className="w-3.5 h-3.5 mr-1 text-white" />
-                  Added!
-                </>
-              ) : isTemporarilyUnavailable ? (
-                'Unavailable'
-              ) : isOutOfStock ? (
-                'Sold Out'
+                <Check className="w-4 h-4 stroke-[3]" />
               ) : hasVariantsOrAddons ? (
-                <>
-                  <Sparkles className="w-3 h-3 mr-1 text-amber-500" />
-                  Customize
-                </>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               ) : (
-                <>
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  Add
-                </>
+                <Plus className="w-4 h-4 stroke-[3]" />
               )}
-            </Button>
-          </CardFooter>
+            </button>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Interactive Detail Modal */}
       <ProductDetailModal

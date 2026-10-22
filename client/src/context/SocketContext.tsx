@@ -36,7 +36,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     // Connect to server with authentication token
     const token = getAuthToken();
-    const socketInstance = io('/', {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || '/';
+    const socketInstance = io(socketUrl, {
       transports: ['websocket', 'polling'],
       auth: { token },
       reconnectionAttempts: 10,
